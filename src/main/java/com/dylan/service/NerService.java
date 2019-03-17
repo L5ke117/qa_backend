@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class NerService {
@@ -31,6 +32,9 @@ public class NerService {
         }
         JSONObject nerJsonObject = JSON.parseObject(nerJsonStr);
         JSONArray entityArray = JSON.parseArray(nerJsonObject.getString("entities"));
+        if (Objects.isNull(entityArray)) {
+            return null;
+        }
         for (Object obj : entityArray) {
             JSONObject entity = (JSONObject) obj;
             entityList.add(entity.getString("word"));
