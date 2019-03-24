@@ -109,10 +109,12 @@ public class QAController {
                         Result segResult = NlpAnalysis.parse(question);
                         List<Term> termList = segResult.getTerms();
                         for (Term term : termList) {
-                            if (term.getNatureStr().equals("q")) {
-                                quantifier = term.getName();
-                            } else if (term.getNatureStr().equals("m")) {
+                            if (term.getNatureStr().equals("m")) {
                                 quantifier = StringUtils.substring(term.getName(), term.getName().length() - 1);
+                                break;
+                            } else if (term.getNatureStr().equals("q")) {
+                                quantifier = term.getName();
+                                break;
                             }
                         }
                         return ambiguousEntity + "有" + count + quantifier + attribute + "。";
