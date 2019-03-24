@@ -42,16 +42,16 @@ public class QaService {
     }
 
     /**
-     * 获取每个歧义实体的所有属性
-     * @param ambiguousEntity
+     * 获取实体的所有属性
+     * @param entity
      * @return
      */
-    public Set<String> getEntityAttributeSet(String ambiguousEntity) {
-        if (StringUtils.isBlank(ambiguousEntity)) {
+    public Set<String> getEntityAttributeSet(String entity) {
+        if (StringUtils.isBlank(entity)) {
             return null;
         }
         Set<String> attributeSet = new HashSet<>();
-        String entityEncoded = UrlUtils.urlEncode(ambiguousEntity);
+        String entityEncoded = UrlUtils.urlEncode(entity);
         String url = ENTITY_KNOWLEDGE_URL.replace("{{entityEncoded}}", entityEncoded);
         String result = HttpUtils.doGet(url);
         JSONObject entityKnowledgeObject = JSON.parseObject(result);
@@ -71,6 +71,28 @@ public class QaService {
             attributeSet.add(attribute.getString(0));
         }
         return attributeSet;
+    }
+
+    public String getEntityDesc(String entity) {
+        if (StringUtils.isBlank(entity)) {
+            return null;
+        }
+        String entityEncoded = UrlUtils.urlEncode(entity);
+        String url = ENTITY_KNOWLEDGE_URL.replace("{{entityEncoded}}", entityEncoded);
+        String result = HttpUtils.doGet(url);
+        JSONObject entityKnowledgeObject = JSON.parseObject(result);
+        if (!"success".equals(entityKnowledgeObject.getString("message"))) {
+            return null;
+        }
+        JSONObject dataObject = entityKnowledgeObject.getJSONObject("data");
+        if (Objects.isNull(dataObject)) {
+            return null;
+        }
+        String desc = dataObject.getString("desc");
+        if (StringUtils.isBlank(desc)) {
+            return null;
+        }
+        return desc;
     }
 
     public List<String> getEntityAttributeValueList(String entity, String attribute) {
