@@ -68,7 +68,7 @@ public class QAController {
         System.out.println(ambiguousList.toString());
         for (String ambiguousEntity : ambiguousList) {
             Set<String> attributeSet = qaService.getEntityAttributeSet(ambiguousEntity);
-            if (Objects.isNull(attributeSet)) {
+            if (Objects.isNull(attributeSet) || attributeSet.isEmpty()) {
                 continue;
             }
             System.out.println(ambiguousEntity + ": " + attributeSet.toString());
