@@ -23,7 +23,7 @@ import java.util.Objects;
 import java.util.Set;
 
 @Controller
-public class QAController {
+public class QaController {
 
     @Autowired
     private NerService nerService;
