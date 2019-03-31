@@ -4,6 +4,7 @@ package com.dylan.controller;
 import com.dylan.enums.QuestionCategory;
 import com.dylan.service.NerService;
 import com.dylan.service.QaService;
+import com.dylan.util.JsonUtils;
 import com.dylan.util.QuestionUtils;
 import org.ansj.domain.Result;
 import org.ansj.domain.Term;
@@ -35,11 +36,11 @@ public class QAController {
     public String getAnswer(@RequestParam("question") String question) {
         List<String> entityList = nerService.getNameEntityList(question);
         if (Objects.isNull(entityList) || entityList.isEmpty()) {
-            return "问句中没有实体！";
+            return JsonUtils.buildJsonStr(1, "问句中没有实体！");
         }
         System.out.println(entityList.toString());
         if (entityList.size() > 2) {
-            return "目前暂不支持多实体问答。";
+            return JsonUtils.buildJsonStr(1, "目前暂不支持多实体问答。");
         }
         String entity = entityList.get(0);
         if (entityList.size() == 2) {
@@ -56,14 +57,14 @@ public class QAController {
         if (questionCategory.equals(QuestionCategory.ENTITY.value())) {
             String desc = qaService.getEntityDesc(entity);
             if (StringUtils.isNotBlank(desc)) {
-                return desc;
+                return JsonUtils.buildJsonStr(0, desc);
             } else {
-                return "抱歉！知识库中不存在该实体。";
+                return JsonUtils.buildJsonStr(1, "抱歉！知识库中不存在该实体。");
             }
         }
         List<String> ambiguousList = qaService.getAmbiguousList(entity);
         if (Objects.isNull(ambiguousList)) {
-            return "抱歉！知识库中不存在该实体。";
+            return JsonUtils.buildJsonStr(1, "抱歉！知识库中不存在该实体。");
         }
         System.out.println(ambiguousList.toString());
         for (String ambiguousEntity : ambiguousList) {
@@ -85,22 +86,22 @@ public class QAController {
                         if (valueList.size() > 10) {
                             valueList = valueList.subList(0, 9);
                         }
-                        return ambiguousEntity + "的" + attribute + "是" + valueList.toString() + "。";
+                        return JsonUtils.buildJsonStr(0, ambiguousEntity + "的" + attribute + "是" + valueList.toString() + "。");
                     }
                     if (questionCategory.equals(QuestionCategory.YES_NO.value())) {
                         for (String value : valueList) {
                             if (question.contains(value)) {
                                 if (valueList.size() == 1) {
-                                    return "是的，" + ambiguousEntity + "的" + attribute + "是" + value + "。";
+                                    return JsonUtils.buildJsonStr(0, "是的，" + ambiguousEntity + "的" + attribute + "是" + value + "。");
                                 } else {
-                                    return "是的，" + ambiguousEntity + "的" + attribute + "有" + valueList.toString() + "，包括" + value + "。";
+                                    return JsonUtils.buildJsonStr(0, "是的，" + ambiguousEntity + "的" + attribute + "有" + valueList.toString() + "，包括" + value + "。");
                                 }
                             }
                         }
                         if (valueList.size() == 1) {
-                            return "不是的，" + ambiguousEntity + "的" +attribute + "是" + valueList.get(0) + "。";
+                            return JsonUtils.buildJsonStr(0, "不是的，" + ambiguousEntity + "的" +attribute + "是" + valueList.get(0) + "。");
                         } else {
-                            return "不是的，" + ambiguousEntity + "的" +attribute + "有" + valueList.toString() + "。";
+                            return JsonUtils.buildJsonStr(0, "不是的，" + ambiguousEntity + "的" +attribute + "有" + valueList.toString() + "。");
                         }
                     }
                     if (questionCategory.equals(QuestionCategory.QUANTITY.value())) {
@@ -117,12 +118,12 @@ public class QAController {
                                 break;
                             }
                         }
-                        return ambiguousEntity + "有" + count + quantifier + attribute + "。";
+                        return JsonUtils.buildJsonStr(0, ambiguousEntity + "有" + count + quantifier + attribute + "。");
                     }
                 }
             }
         }
-        return "很抱歉！目前知识库中不存在该问题的答案。";
+        return JsonUtils.buildJsonStr(1, "很抱歉！目前知识库中不存在该问题的答案。");
     }
 
     @RequestMapping(value = "/seg", method = RequestMethod.GET)
@@ -137,6 +138,6 @@ public class QAController {
             System.out.println(term.getNatureStr());
         }
         String questionCategory = QuestionUtils.getQuestionCategory(question);
-        return questionCategory;
+        return JsonUtils.buildJsonStr(0, questionCategory);
     }
 }
