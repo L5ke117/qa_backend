@@ -41,7 +41,7 @@ public class QuestionUtils {
             return QuestionCategory.ENTITY.value();
         }
         // 判断是否简单事实型
-        if (nounCount.equals(2)) {
+        if (nounCount >= 2) {
             return QuestionCategory.FACT.value();
         }
         return QuestionCategory.RAW.value();
