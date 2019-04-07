@@ -34,14 +34,17 @@ public class QaController {
     @RequestMapping(value = "/qa", method = RequestMethod.GET)
     @ResponseBody
     public String getAnswer(@RequestParam("question") String question) {
+        long nerStartTime = System.currentTimeMillis();
         List<String> entityList = nerService.getNameEntityList(question);
+        long nerEndTime = System.currentTimeMillis();
+        System.out.println("ner运行时间：" + (nerEndTime - nerStartTime) + "ms");
         if (Objects.isNull(entityList) || entityList.isEmpty()) {
             return JsonUtils.buildJsonStr(1, "问句中没有实体！");
         }
         System.out.println(entityList.toString());
-        if (entityList.size() > 2) {
-            return JsonUtils.buildJsonStr(1, "目前暂不支持多实体问答。");
-        }
+//        if (entityList.size() > 2) {
+//            return JsonUtils.buildJsonStr(1, "目前暂不支持多实体问答。");
+//        }
         String entity = entityList.get(0);
         if (entityList.size() == 2) {
             for (String entityItem : entityList) {
@@ -54,6 +57,7 @@ public class QaController {
             }
         }
         String questionCategory = QuestionUtils.getQuestionCategory(question);
+        // TODO 这块也改成先获取歧义实体
         if (questionCategory.equals(QuestionCategory.ENTITY.value())) {
             String desc = qaService.getEntityDesc(entity);
             if (StringUtils.isNotBlank(desc)) {
@@ -62,67 +66,89 @@ public class QaController {
                 return JsonUtils.buildJsonStr(1, "抱歉！知识库中不存在该实体。");
             }
         }
-        List<String> ambiguousList = qaService.getAmbiguousList(entity);
-        if (Objects.isNull(ambiguousList)) {
-            return JsonUtils.buildJsonStr(1, "抱歉！知识库中不存在该实体。");
-        }
-        System.out.println(ambiguousList.toString());
-        for (String ambiguousEntity : ambiguousList) {
-            Set<String> attributeSet = qaService.getEntityAttributeSet(ambiguousEntity);
-            if (Objects.isNull(attributeSet) || attributeSet.isEmpty()) {
-                continue;
+        // 不包含“[”说明还未进行实体消歧
+        if (!question.contains("[")) {
+            List<String> ambiguousList = qaService.getAmbiguousList(entity);
+            if (Objects.isNull(ambiguousList)) {
+                return JsonUtils.buildJsonStr(1, "抱歉！知识库中不存在该实体。");
             }
-            System.out.println(ambiguousEntity + ": " + attributeSet.toString());
-            // 对于每个歧义实体的属性，如果与问题中的属性匹配，则直接返回属性值
-            for (String attribute : attributeSet) {
-                if (question.contains(attribute)) {
-                    List<String> valueList = qaService.getEntityAttributeValueList(ambiguousEntity, attribute);
-                    if (Objects.isNull(valueList) || valueList.isEmpty()) {
-                        continue;
+            return JsonUtils.buildJsonStr(0, "知识库中包含多个名为“" + entity + "”的实体，请选择您需要查询的对象：\n" + ambiguousList.toString());
+        }
+        // 找到消歧后的具体实体
+        int fromIndex = question.indexOf("[");
+        int toIndex = question.indexOf("]") + 1;
+        String ambiguousDiscription = question.substring(fromIndex, toIndex);
+        String ambiguousEntity = entity + ambiguousDiscription;
+        System.out.println(ambiguousEntity);
+        Set<String> attributeSet = qaService.getEntityAttributeSet(ambiguousEntity);
+        if (Objects.isNull(attributeSet) || attributeSet.isEmpty()) {
+            return JsonUtils.buildJsonStr(1, "抱歉！知识库中不存在该实体的相关属性。");
+        }
+        System.out.println(ambiguousEntity + ": " + attributeSet.toString());
+        // 对于每个歧义实体的属性，如果与问题中的属性匹配，则直接返回属性值
+        long attrStartTime = System.currentTimeMillis();
+        for (String attribute : attributeSet) {
+            if (question.contains(attribute)) {
+                List<String> valueList = qaService.getEntityAttributeValueList(ambiguousEntity, attribute);
+                if (Objects.isNull(valueList) || valueList.isEmpty()) {
+                    continue;
+                }
+                valueList = QuestionUtils.splitCombinedValue(valueList);
+                if (questionCategory.equals(QuestionCategory.FACT.value())) {
+                    // 属性值太多了，就只显示前10个
+                    if (valueList.size() > 10) {
+                        valueList = valueList.subList(0, 9);
                     }
-                    valueList = QuestionUtils.splitCombinedValue(valueList);
-                    if (questionCategory.equals(QuestionCategory.FACT.value())) {
-                        // 属性值太多了，就只显示前10个
-                        if (valueList.size() > 10) {
-                            valueList = valueList.subList(0, 9);
-                        }
-                        return JsonUtils.buildJsonStr(0, ambiguousEntity + "的" + attribute + "是" + valueList.toString() + "。");
-                    }
-                    if (questionCategory.equals(QuestionCategory.YES_NO.value())) {
-                        for (String value : valueList) {
-                            if (question.contains(value)) {
-                                if (valueList.size() == 1) {
-                                    return JsonUtils.buildJsonStr(0, "是的，" + ambiguousEntity + "的" + attribute + "是" + value + "。");
-                                } else {
-                                    return JsonUtils.buildJsonStr(0, "是的，" + ambiguousEntity + "的" + attribute + "有" + valueList.toString() + "，包括" + value + "。");
-                                }
+                    long attrEndTime = System.currentTimeMillis();
+                    System.out.println("属性匹配运行时间：" + (attrEndTime - attrStartTime) + "ms");
+                    return JsonUtils.buildJsonStr(0, ambiguousEntity + "的" + attribute + "是" + valueList.toString() + "。");
+                }
+                if (questionCategory.equals(QuestionCategory.YES_NO.value())) {
+                    for (String value : valueList) {
+                        if (question.contains(value)) {
+                            if (valueList.size() == 1) {
+                                long attrEndTime = System.currentTimeMillis();
+                                System.out.println("属性匹配运行时间：" + (attrEndTime - attrStartTime) + "ms");
+                                return JsonUtils.buildJsonStr(0, "是的，" + ambiguousEntity + "的" + attribute + "是" + value + "。");
+                            } else {
+                                long attrEndTime = System.currentTimeMillis();
+                                System.out.println("属性匹配运行时间：" + (attrEndTime - attrStartTime) + "ms");
+                                return JsonUtils.buildJsonStr(0, "是的，" + ambiguousEntity + "的" + attribute + "有" + valueList.toString() + "，包括" + value + "。");
                             }
                         }
-                        if (valueList.size() == 1) {
-                            return JsonUtils.buildJsonStr(0, "不是的，" + ambiguousEntity + "的" +attribute + "是" + valueList.get(0) + "。");
-                        } else {
-                            return JsonUtils.buildJsonStr(0, "不是的，" + ambiguousEntity + "的" +attribute + "有" + valueList.toString() + "。");
+                    }
+                    if (valueList.size() == 1) {
+                        long attrEndTime = System.currentTimeMillis();
+                        System.out.println("属性匹配运行时间：" + (attrEndTime - attrStartTime) + "ms");
+                        return JsonUtils.buildJsonStr(0, "不是的，" + ambiguousEntity + "的" +attribute + "是" + valueList.get(0) + "。");
+                    } else {
+                        long attrEndTime = System.currentTimeMillis();
+                        System.out.println("属性匹配运行时间：" + (attrEndTime - attrStartTime) + "ms");
+                        return JsonUtils.buildJsonStr(0, "不是的，" + ambiguousEntity + "的" +attribute + "有" + valueList.toString() + "。");
+                    }
+                }
+                if (questionCategory.equals(QuestionCategory.QUANTITY.value())) {
+                    int count = valueList.size();
+                    String quantifier = "个";
+                    Result segResult = NlpAnalysis.parse(question);
+                    List<Term> termList = segResult.getTerms();
+                    for (Term term : termList) {
+                        if (term.getNatureStr().equals("m")) {
+                            quantifier = StringUtils.substring(term.getName(), term.getName().length() - 1);
+                            break;
+                        } else if (term.getNatureStr().equals("q")) {
+                            quantifier = term.getName();
+                            break;
                         }
                     }
-                    if (questionCategory.equals(QuestionCategory.QUANTITY.value())) {
-                        int count = valueList.size();
-                        String quantifier = "个";
-                        Result segResult = NlpAnalysis.parse(question);
-                        List<Term> termList = segResult.getTerms();
-                        for (Term term : termList) {
-                            if (term.getNatureStr().equals("m")) {
-                                quantifier = StringUtils.substring(term.getName(), term.getName().length() - 1);
-                                break;
-                            } else if (term.getNatureStr().equals("q")) {
-                                quantifier = term.getName();
-                                break;
-                            }
-                        }
-                        return JsonUtils.buildJsonStr(0, ambiguousEntity + "有" + count + quantifier + attribute + "。");
-                    }
+                    long attrEndTime = System.currentTimeMillis();
+                    System.out.println("属性匹配运行时间：" + (attrEndTime - attrStartTime) + "ms");
+                    return JsonUtils.buildJsonStr(0, ambiguousEntity + "有" + count + quantifier + attribute + "。");
                 }
             }
         }
+        long attrEndTime = System.currentTimeMillis();
+        System.out.println("属性匹配运行时间：" + (attrEndTime - attrStartTime) + "ms");
         return JsonUtils.buildJsonStr(1, "很抱歉！目前知识库中不存在该问题的答案。");
     }
 

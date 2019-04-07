@@ -32,7 +32,7 @@ public class QuestionUtils {
         }
         String segResult = NlpAnalysis.parse(question).toString();
         // 判断是否数量型
-        if (segResult.contains("/m") || segResult.contains("/q") || question.contains("有多少")) {
+        if (segResult.contains("/m") || question.contains("有多少")) {
             return QuestionCategory.QUANTITY.value();
         }
         // 判断是否简单实体型
