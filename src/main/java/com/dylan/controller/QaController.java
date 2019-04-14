@@ -39,7 +39,7 @@ public class QaController {
         long nerEndTime = System.currentTimeMillis();
         System.out.println("ner运行时间：" + (nerEndTime - nerStartTime) + "ms");
         if (Objects.isNull(entityList) || entityList.isEmpty()) {
-            return JsonUtils.buildJsonStr(1, "问句中没有实体！");
+            return JsonUtils.buildJsonStr(1, "抱歉！未能找到问句中的实体！");
         }
         System.out.println(entityList.toString());
 //        if (entityList.size() > 2) {
@@ -57,7 +57,7 @@ public class QaController {
             }
         }
         String questionCategory = QuestionUtils.getQuestionCategory(question);
-        // TODO 这块也改成先获取歧义实体
+        // 如果是简单实体类问题，直接返回实体描述
         if (questionCategory.equals(QuestionCategory.ENTITY.value())) {
             String desc = qaService.getEntityDesc(entity);
             if (StringUtils.isNotBlank(desc)) {
@@ -72,13 +72,21 @@ public class QaController {
             if (Objects.isNull(ambiguousList)) {
                 return JsonUtils.buildJsonStr(1, "抱歉！知识库中不存在该实体。");
             }
-            return JsonUtils.buildJsonStr(0, "知识库中包含多个名为“" + entity + "”的实体，请选择您需要查询的对象：\n" + ambiguousList.toString());
+            // 列表大小大于1说明需要消歧
+            if (ambiguousList.size() > 1) {
+                return JsonUtils.buildJsonStr(0, "知识库中包含多个名为“" + entity + "”的实体，请选择您需要查询的对象：\n" + ambiguousList.toString());
+            }
         }
+
         // 找到消歧后的具体实体
         int fromIndex = question.indexOf("[");
+        String ambiguousDescription = "";
         int toIndex = question.indexOf("]") + 1;
-        String ambiguousDiscription = question.substring(fromIndex, toIndex);
-        String ambiguousEntity = entity + ambiguousDiscription;
+        // 不包含方括号说明知识库里只有一个该实体
+        if (fromIndex != -1 && toIndex != 0) {
+            ambiguousDescription = question.substring(fromIndex, toIndex);
+        }
+        String ambiguousEntity = entity + ambiguousDescription;
         System.out.println(ambiguousEntity);
         Set<String> attributeSet = qaService.getEntityAttributeSet(ambiguousEntity);
         if (Objects.isNull(attributeSet) || attributeSet.isEmpty()) {
@@ -149,7 +157,7 @@ public class QaController {
         }
         long attrEndTime = System.currentTimeMillis();
         System.out.println("属性匹配运行时间：" + (attrEndTime - attrStartTime) + "ms");
-        return JsonUtils.buildJsonStr(1, "很抱歉！目前知识库中不存在该问题的答案。");
+        return JsonUtils.buildJsonStr(1, "抱歉！目前知识库中不存在该问题的答案。");
     }
 
     @RequestMapping(value = "/seg", method = RequestMethod.GET)
