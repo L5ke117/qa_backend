@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -35,7 +36,19 @@ public class QaController {
     @ResponseBody
     public String getAnswer(@RequestParam("question") String question) {
         long nerStartTime = System.currentTimeMillis();
-        List<String> entityList = nerService.getNameEntityList(question);
+        String subQuestion = null;
+        List<String> entityList = new ArrayList<>();
+        // 如果问句中包含实体的消岐释义，则在进行命名实体识别时要先剔除掉
+        if (question.contains("[")) {
+            int disAmbiStart = question.indexOf("[");
+            int disAmbiEnd = question.indexOf("]") + 1;
+            String disAmbi = question.substring(disAmbiStart, disAmbiEnd);
+            subQuestion = StringUtils.remove(question, disAmbi);
+            System.out.println("disAmbi: " + disAmbi + " subQuestion: " + subQuestion);
+            entityList = nerService.getNameEntityList(subQuestion);
+        } else {
+            entityList = nerService.getNameEntityList(question);
+        }
         long nerEndTime = System.currentTimeMillis();
         System.out.println("ner运行时间：" + (nerEndTime - nerStartTime) + "ms");
         if (Objects.isNull(entityList) || entityList.isEmpty()) {
@@ -56,16 +69,11 @@ public class QaController {
                 }
             }
         }
-        String questionCategory = QuestionUtils.getQuestionCategory(question);
-        // 如果是简单实体类问题，直接返回实体描述
-        if (questionCategory.equals(QuestionCategory.ENTITY.value())) {
-            String desc = qaService.getEntityDesc(entity);
-            if (StringUtils.isNotBlank(desc)) {
-                return JsonUtils.buildJsonStr(0, desc);
-            } else {
-                return JsonUtils.buildJsonStr(1, "抱歉！知识库中不存在该实体。");
-            }
+        String questionCategory = QuestionUtils.getQuestionCategory(StringUtils.isBlank(subQuestion) ? question : subQuestion);
+        if (questionCategory.equals(QuestionCategory.RAW.value())) {
+            return JsonUtils.buildJsonStr(1, "抱歉！暂不支持此类型的问题。");
         }
+
         // 不包含“[”说明还未进行实体消歧
         if (!question.contains("[")) {
             List<String> ambiguousList = qaService.getAmbiguousList(entity);
@@ -88,6 +96,17 @@ public class QaController {
         }
         String ambiguousEntity = entity + ambiguousDescription;
         System.out.println(ambiguousEntity);
+
+        // 如果是简单实体类问题，直接返回实体描述
+        if (questionCategory.equals(QuestionCategory.ENTITY.value())) {
+            String desc = qaService.getEntityDesc(ambiguousEntity);
+            if (StringUtils.isNotBlank(desc)) {
+                return JsonUtils.buildJsonStr(0, desc);
+            } else {
+                return JsonUtils.buildJsonStr(1, "抱歉！知识库中不存在该实体。");
+            }
+        }
+
         Set<String> attributeSet = qaService.getEntityAttributeSet(ambiguousEntity);
         if (Objects.isNull(attributeSet) || attributeSet.isEmpty()) {
             return JsonUtils.buildJsonStr(1, "抱歉！知识库中不存在该实体的相关属性。");

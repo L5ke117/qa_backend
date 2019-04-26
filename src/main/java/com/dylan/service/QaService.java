@@ -15,7 +15,7 @@ import java.util.*;
 public class QaService {
     private static final String AMBIGUOUS_URL = "https://api.ownthink.com/kg/ambiguous?mention={{entityEncoded}}";
     private static final String ENTITY_KNOWLEDGE_URL = "https://api.ownthink.com/kg/knowledge?entity={{entityEncoded}}";
-    public static final String  ENTITY_ATTRIBUTE_URL = "https://api.ownthink.com/kg/eav?entity={{entityEncoded}}&attribute={{attributeEncoded}}";
+    private static final String  ENTITY_ATTRIBUTE_URL = "https://api.ownthink.com/kg/eav?entity={{entityEncoded}}&attribute={{attributeEncoded}}";
     /**
      * 获取实体的每个歧义
      * @param entity
