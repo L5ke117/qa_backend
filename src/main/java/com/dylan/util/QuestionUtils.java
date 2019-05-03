@@ -71,6 +71,10 @@ public class QuestionUtils {
                 String[] valueArray = StringUtils.split(valueItem, "、");
                 resultList.addAll(Arrays.asList(valueArray));
                 resultList.remove(valueItem);
+            } else if (valueItem.contains(";")) {
+                String[] valueArray = StringUtils.split(valueItem, ";");
+                resultList.addAll(Arrays.asList(valueArray));
+                resultList.remove(valueItem);
             }
         }
         return resultList;

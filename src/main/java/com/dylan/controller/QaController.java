@@ -18,10 +18,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 
 @Controller
 public class QaController {
@@ -61,11 +58,19 @@ public class QaController {
         String entity = entityList.get(0);
         if (entityList.size() == 2) {
             for (String entityItem : entityList) {
-                // 判断实体的位置是不是在“的”前面
-                int index = StringUtils.indexOf(question, entityItem) + entityItem.length();
-                if (index == StringUtils.indexOf(question, "的")) {
-                    entity = entityItem;
-                    break;
+                // 判断实体的位置是不是在“的”前面，如果问题中带有消岐释义，则使用去消岐释义的问题进行判断
+                if (Objects.isNull(subQuestion)) {
+                    int index = StringUtils.indexOf(question, entityItem) + entityItem.length();
+                    if (index == StringUtils.indexOf(question, "的")) {
+                        entity = entityItem;
+                        break;
+                    }
+                } else {
+                    int index = StringUtils.indexOf(subQuestion, entityItem) + entityItem.length();
+                    if (index == StringUtils.indexOf(subQuestion, "的")) {
+                        entity = entityItem;
+                        break;
+                    }
                 }
             }
         }
@@ -121,14 +126,25 @@ public class QaController {
                     continue;
                 }
                 valueList = QuestionUtils.splitCombinedValue(valueList);
-                if (questionCategory.equals(QuestionCategory.FACT.value())) {
-                    // 属性值太多了，就只显示前10个
-                    if (valueList.size() > 10) {
-                        valueList = valueList.subList(0, 9);
+                StringBuilder valueListSb = new StringBuilder();
+                valueListSb.append("[");
+                Iterator iter = valueList.iterator();
+                while (iter.hasNext()) {
+                    valueListSb.append(iter.next());
+                    if (iter.hasNext()) {
+                        valueListSb.append(",");
                     }
+                }
+                valueListSb.append("]");
+                String valueListStr = valueListSb.toString();
+                if (questionCategory.equals(QuestionCategory.FACT.value())) {
+//                    // 属性值太多了，就只显示前10个
+//                    if (valueList.size() > 10) {
+//                        valueList = valueList.subList(0, 9);
+//                    }
                     long attrEndTime = System.currentTimeMillis();
                     System.out.println("属性匹配运行时间：" + (attrEndTime - attrStartTime) + "ms");
-                    return JsonUtils.buildJsonStr(0, ambiguousEntity + "的" + attribute + "是" + valueList.toString() + "。");
+                    return JsonUtils.buildJsonStr(0, ambiguousEntity + "的" + attribute + "是" + valueListStr + "。");
                 }
                 if (questionCategory.equals(QuestionCategory.YES_NO.value())) {
                     for (String value : valueList) {
@@ -140,7 +156,7 @@ public class QaController {
                             } else {
                                 long attrEndTime = System.currentTimeMillis();
                                 System.out.println("属性匹配运行时间：" + (attrEndTime - attrStartTime) + "ms");
-                                return JsonUtils.buildJsonStr(0, "是的，" + ambiguousEntity + "的" + attribute + "有" + valueList.toString() + "，包括" + value + "。");
+                                return JsonUtils.buildJsonStr(0, "是的，" + ambiguousEntity + "的" + attribute + "有" + valueListStr + "，包括" + value + "。");
                             }
                         }
                     }
@@ -151,7 +167,7 @@ public class QaController {
                     } else {
                         long attrEndTime = System.currentTimeMillis();
                         System.out.println("属性匹配运行时间：" + (attrEndTime - attrStartTime) + "ms");
-                        return JsonUtils.buildJsonStr(0, "不是的，" + ambiguousEntity + "的" +attribute + "有" + valueList.toString() + "。");
+                        return JsonUtils.buildJsonStr(0, "不是的，" + ambiguousEntity + "的" +attribute + "有" + valueListStr + "。");
                     }
                 }
                 if (questionCategory.equals(QuestionCategory.QUANTITY.value())) {
@@ -170,7 +186,7 @@ public class QaController {
                     }
                     long attrEndTime = System.currentTimeMillis();
                     System.out.println("属性匹配运行时间：" + (attrEndTime - attrStartTime) + "ms");
-                    return JsonUtils.buildJsonStr(0, ambiguousEntity + "有" + count + quantifier + attribute + "。");
+                    return JsonUtils.buildJsonStr(0, ambiguousEntity + "有" + count + quantifier + attribute + "，是" + valueListStr +"。");
                 }
             }
         }
