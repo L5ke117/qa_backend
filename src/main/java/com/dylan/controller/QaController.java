@@ -1,6 +1,7 @@
 package com.dylan.controller;
 
 
+import com.dylan.App;
 import com.dylan.enums.QuestionCategory;
 import com.dylan.service.NerService;
 import com.dylan.service.QaService;
@@ -11,6 +12,7 @@ import org.ansj.domain.Term;
 import org.ansj.splitWord.analysis.NlpAnalysis;
 import org.ansj.splitWord.analysis.ToAnalysis;
 import org.apache.commons.lang.StringUtils;
+import org.junit.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import java.io.*;
 import java.util.*;
 
 @Controller
@@ -29,12 +32,46 @@ public class QaController {
     @Autowired
     private QaService qaService;
 
+    /**
+     * 保存近义词映射的map，key为近义词，value为归一化后的词
+     */
+    private static Map<String, String>  homoionymMap = new HashMap<>();
+
+    static {
+        String path = QaController.class.getClassLoader().getResource("./mapping.properties").getPath();
+        File file = new File(path);
+        String tempStr = null;
+        try(
+            BufferedReader reader = new BufferedReader(new FileReader(file))
+        ) {
+            while ((tempStr = reader.readLine()) != null) {
+                if (StringUtils.isBlank(tempStr)) {
+                    continue;
+                }
+                if (!tempStr.startsWith("#")) {
+                    String[] strArray = tempStr.split("=");
+                    homoionymMap.put(strArray[0], strArray[1]);
+                }
+            }
+            //System.out.println(homoionymMap.toString());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     @RequestMapping(value = "/qa", method = RequestMethod.GET)
     @ResponseBody
     public String getAnswer(@RequestParam("question") String question) {
         long nerStartTime = System.currentTimeMillis();
         String subQuestion = null;
         List<String> entityList = new ArrayList<>();
+        // 先进行问句短语归一化
+        for (String key : homoionymMap.keySet()) {
+            if (question.contains(key)) {
+                question = question.replace(key, homoionymMap.get(key));
+            }
+        }
+        System.out.println("归一化后的问句：" + question);
         // 如果问句中包含实体的消岐释义，则在进行命名实体识别时要先剔除掉
         if (question.contains("[")) {
             int disAmbiStart = question.indexOf("[");
@@ -113,6 +150,13 @@ public class QaController {
         }
 
         Set<String> attributeSet = qaService.getEntityAttributeSet(ambiguousEntity);
+        // 把知识库里的属性集也归一化一遍
+        Map<String, String> homoionymAttrMap = new HashMap<>();
+        for (String attr : attributeSet) {
+            if (homoionymMap.containsKey(attr)) {
+                homoionymAttrMap.put(attr, homoionymMap.get(attr));
+            }
+        }
         if (Objects.isNull(attributeSet) || attributeSet.isEmpty()) {
             return JsonUtils.buildJsonStr(1, "抱歉！知识库中不存在该实体的相关属性。");
         }
@@ -120,8 +164,12 @@ public class QaController {
         // 对于每个歧义实体的属性，如果与问题中的属性匹配，则直接返回属性值
         long attrStartTime = System.currentTimeMillis();
         for (String attribute : attributeSet) {
+            String homoinymAttribute = attribute;
+            if (homoionymAttrMap.containsKey(attribute)) {
+                attribute = homoionymAttrMap.get(attribute);
+            }
             if (question.contains(attribute)) {
-                List<String> valueList = qaService.getEntityAttributeValueList(ambiguousEntity, attribute);
+                List<String> valueList = qaService.getEntityAttributeValueList(ambiguousEntity, homoinymAttribute);
                 if (Objects.isNull(valueList) || valueList.isEmpty()) {
                     continue;
                 }
@@ -208,5 +256,17 @@ public class QaController {
         }
         String questionCategory = QuestionUtils.getQuestionCategory(question);
         return JsonUtils.buildJsonStr(0, questionCategory);
+    }
+
+    @Test
+    public  void testPath() {
+
+        try {
+            String path = this.getClass().getClassLoader().getResource("./mapping.properties").getPath();
+            System.out.println(path);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
     }
 }
