@@ -111,7 +111,7 @@ public class QaController {
                 }
             }
         }
-        String questionCategory = QuestionUtils.getQuestionCategory(StringUtils.isBlank(subQuestion) ? question : subQuestion);
+        String questionCategory = QuestionUtils.getQuestionCategory(StringUtils.isBlank(subQuestion) ? question : subQuestion, entityList);
         if (questionCategory.equals(QuestionCategory.RAW.value())) {
             return JsonUtils.buildJsonStr(1, "抱歉！暂不支持此类型的问题。");
         }
@@ -254,7 +254,8 @@ public class QaController {
             System.out.println(term.getRealName());
             System.out.println(term.getNatureStr());
         }
-        String questionCategory = QuestionUtils.getQuestionCategory(question);
+        List<String> entityList = nerService.getNameEntityList(question);
+        String questionCategory = QuestionUtils.getQuestionCategory(question, entityList);
         return JsonUtils.buildJsonStr(0, questionCategory);
     }
 

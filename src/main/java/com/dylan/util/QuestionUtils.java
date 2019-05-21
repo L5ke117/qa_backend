@@ -23,7 +23,7 @@ public class QuestionUtils {
      * @param question
      * @return
      */
-    public static String getQuestionCategory(String question) {
+    public static String getQuestionCategory(String question, List<String> entityList) {
         // 判断是否是非型问题
         for (String yesNoStr : YES_NO_LIST) {
             if (question.contains(yesNoStr)) {
@@ -37,7 +37,7 @@ public class QuestionUtils {
         }
         // 判断是否简单实体型
         Integer nounCount = QuestionUtils.getNounCount(segResult);
-        if (nounCount.equals(1)) {
+        if (nounCount == 1) {
             return QuestionCategory.ENTITY.value();
         }
         // 判断是否简单事实型
@@ -89,6 +89,7 @@ public class QuestionUtils {
         Integer count = 0;
         count += StringUtils.countMatches(questionSeg, "/n");
         count += StringUtils.countMatches(questionSeg, "/an");
+        count += StringUtils.countMatches(questionSeg, "/l");
         return count;
     }
 }
