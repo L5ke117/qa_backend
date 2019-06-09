@@ -38,11 +38,12 @@ public class QaController {
     private static Map<String, String>  homoionymMap = new HashMap<>();
 
     static {
-        String path = QaController.class.getClassLoader().getResource("./mapping.properties").getPath();
-        File file = new File(path);
+        //String path = QaController.class.getClassLoader().getResource("mapping.properties").getPath();
+        InputStream is = QaController.class.getResourceAsStream("/mapping.properties");
+        //File file = new File(path);
         String tempStr = null;
         try(
-            BufferedReader reader = new BufferedReader(new FileReader(file))
+            BufferedReader reader = new BufferedReader(new InputStreamReader(is))
         ) {
             while ((tempStr = reader.readLine()) != null) {
                 if (StringUtils.isBlank(tempStr)) {
