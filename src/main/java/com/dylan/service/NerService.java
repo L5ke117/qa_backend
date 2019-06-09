@@ -16,8 +16,8 @@ import java.util.Objects;
 @Service
 public class NerService {
 
-    //private static final String NER_URL = "http://139.224.114.96:8088/predict?sentence={{sentenceEncoded}}";
-    private static final String NER_URL = "http://localhost:8090/predict?sentence={{sentenceEncoded}}";
+    private static final String NER_URL = "http://139.224.114.96:8088/predict?sentence={{sentenceEncoded}}";
+   // private static final String NER_URL = "http://localhost:8090/predict?sentence={{sentenceEncoded}}";
 
     /**
      * 获取句子中的所有命名实体

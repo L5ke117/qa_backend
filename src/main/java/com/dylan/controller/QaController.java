@@ -150,6 +150,9 @@ public class QaController {
         }
 
         Set<String> attributeSet = qaService.getEntityAttributeSet(ambiguousEntity);
+        if (Objects.isNull(attributeSet) || attributeSet.isEmpty()) {
+            return JsonUtils.buildJsonStr(1, "抱歉！知识库中不存在该实体的相关属性。");
+        }
         // 把知识库里的属性集也归一化一遍
         Map<String, String> homoionymAttrMap = new HashMap<>();
         for (String attr : attributeSet) {
@@ -157,9 +160,7 @@ public class QaController {
                 homoionymAttrMap.put(attr, homoionymMap.get(attr));
             }
         }
-        if (Objects.isNull(attributeSet) || attributeSet.isEmpty()) {
-            return JsonUtils.buildJsonStr(1, "抱歉！知识库中不存在该实体的相关属性。");
-        }
+
         System.out.println(ambiguousEntity + ": " + attributeSet.toString());
         // 对于每个歧义实体的属性，如果与问题中的属性匹配，则直接返回属性值
         long attrStartTime = System.currentTimeMillis();
@@ -240,7 +241,7 @@ public class QaController {
         }
         long attrEndTime = System.currentTimeMillis();
         System.out.println("属性匹配运行时间：" + (attrEndTime - attrStartTime) + "ms");
-        return JsonUtils.buildJsonStr(1, "抱歉！目前知识库中不存在该问题的答案。");
+        return JsonUtils.buildJsonStr(1, "抱歉！目前知识库中不存在该问题的答案。您可以询问该实体的以下属性：" + attributeSet.toString());
     }
 
     @RequestMapping(value = "/seg", method = RequestMethod.GET)
@@ -257,6 +258,12 @@ public class QaController {
         List<String> entityList = nerService.getNameEntityList(question);
         String questionCategory = QuestionUtils.getQuestionCategory(question, entityList);
         return JsonUtils.buildJsonStr(0, questionCategory);
+    }
+    @RequestMapping(value = "/ner", method = RequestMethod.GET)
+    @ResponseBody
+    public String getEntity(@RequestParam("question") String question) {
+        List<String> entityList = nerService.getNameEntityList(question);
+        return JsonUtils.buildJsonStr(0, entityList.toString());
     }
 
     @Test
